@@ -1,0 +1,4 @@
+# copy to terraform.tfvars (git-ignored) - or pass TF_VAR_* env vars as the workflow does
+acr_name       = "smartbusnie12345"
+admin_email    = "admin@example.com"
+# db_password, jwt_secret, admin_password: supply via TF_VAR_* environment variables

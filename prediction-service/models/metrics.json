@@ -1,0 +1,43 @@
+{
+  "data_source": "SYNTHETIC (simulated, not real KSRTC measurements)",
+  "train_rows": 8064,
+  "test_rows": 2688,
+  "mae_percentage_points": 5.15,
+  "r2": 0.9,
+  "category_accuracy": 0.802,
+  "category_precision_weighted": 0.8,
+  "category_recall_weighted": 0.802,
+  "category_f1_weighted": 0.8,
+  "confusion_matrix_labels": [
+    "Low",
+    "Moderate",
+    "High",
+    "Overcrowded"
+  ],
+  "confusion_matrix": [
+    [
+      490,
+      152,
+      0,
+      0
+    ],
+    [
+      124,
+      1187,
+      59,
+      0
+    ],
+    [
+      0,
+      103,
+      413,
+      37
+    ],
+    [
+      0,
+      0,
+      57,
+      66
+    ]
+  ]
+}

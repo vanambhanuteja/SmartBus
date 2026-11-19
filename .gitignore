@@ -1,0 +1,17 @@
+# secrets & env
+.env
+*.tfvars
+*.tfstate*
+.terraform/
+# build output
+node_modules/
+frontend/dist/
+backend/target/
+__pycache__/
+*.pyc
+.pytest_cache/
+prediction-service/models/model.joblib
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store

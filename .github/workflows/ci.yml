@@ -1,0 +1,129 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop, 'feature/**']
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  changes:                      # detect which parts of the repo changed
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.f.outputs.frontend }}
+      backend: ${{ steps.f.outputs.backend }}
+      prediction: ${{ steps.f.outputs.prediction }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: f
+        with:
+          filters: |
+            frontend:   ['frontend/**', '.github/workflows/**']
+            backend:    ['backend/**', 'database/**', '.github/workflows/**']
+            prediction: ['prediction-service/**', '.github/workflows/**']
+
+  frontend:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: frontend } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm, cache-dependency-path: frontend/package-lock.json }
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+
+  backend:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: backend } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 21, cache: maven }
+      - run: mvn -B verify          # compiles, runs JUnit tests, builds the jar
+
+  prediction-service:
+    needs: changes
+    if: needs.changes.outputs.prediction == 'true'
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: prediction-service } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12', cache: pip, cache-dependency-path: prediction-service/requirements.txt }
+      - run: pip install -r requirements.txt
+      - run: pytest -q
+
+  docker-build:                 # builds all three images (does not push)
+    needs: [frontend, backend, prediction-service]
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          docker build -t smartbus-frontend ./frontend
+          docker build -t smartbus-backend ./backend
+          docker build -t smartbus-prediction ./prediction-service
+
+  compose-smoke-test:           # starts the whole stack and runs scripts/smoke_test.sh
+    needs: docker-build
+    if: ${{ !cancelled() && needs.docker-build.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create throw-away .env for CI
+        run: |
+          cat > .env <<EOT
+          DB_PASSWORD=ci-db-password
+          JWT_SECRET=ci-jwt-secret-ci-jwt-secret-ci-jwt-secret
+          ADMIN_EMAIL=admin@ci.local
+          ADMIN_PASSWORD=ci-admin-password
+          EOT
+      - run: docker compose up -d --build --wait --wait-timeout 300
+      - run: ./scripts/smoke_test.sh
+      - if: failure()
+        run: docker compose logs --tail=100
+      - if: always()
+        run: docker compose down -v
+
+  publish-images:               # only on main/develop pushes AND only if registry secrets exist
+    needs: compose-smoke-test
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+    runs-on: ubuntu-latest
+    env:
+      HAS_DOCKERHUB: ${{ secrets.DOCKERHUB_TOKEN != '' && secrets.DOCKERHUB_USERNAME != '' }}
+      HAS_ACR: ${{ secrets.ACR_LOGIN_SERVER != '' && secrets.ACR_USERNAME != '' && secrets.ACR_PASSWORD != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Skip notice
+        if: env.HAS_DOCKERHUB != 'true' && env.HAS_ACR != 'true'
+        run: echo "No registry secrets configured - images were built and tested but not published."
+      - name: Login to Docker Hub
+        if: env.HAS_DOCKERHUB == 'true'
+        uses: docker/login-action@v3
+        with: { username: '${{ secrets.DOCKERHUB_USERNAME }}', password: '${{ secrets.DOCKERHUB_TOKEN }}' }
+      - name: Login to Azure Container Registry
+        if: env.HAS_ACR == 'true'
+        uses: docker/login-action@v3
+        with: { registry: '${{ secrets.ACR_LOGIN_SERVER }}', username: '${{ secrets.ACR_USERNAME }}', password: '${{ secrets.ACR_PASSWORD }}' }
+      - name: Build and push
+        if: env.HAS_DOCKERHUB == 'true' || env.HAS_ACR == 'true'
+        run: |
+          TAG=${GITHUB_SHA::7}
+          for svc in frontend backend prediction-service database; do
+            docker build -t smartbus-$svc:$TAG ./$svc
+            if [ "$HAS_DOCKERHUB" = "true" ]; then
+              docker tag smartbus-$svc:$TAG ${{ secrets.DOCKERHUB_USERNAME }}/smartbus-$svc:$TAG
+              docker tag smartbus-$svc:$TAG ${{ secrets.DOCKERHUB_USERNAME }}/smartbus-$svc:latest
+              docker push --all-tags ${{ secrets.DOCKERHUB_USERNAME }}/smartbus-$svc
+            fi
+            if [ "$HAS_ACR" = "true" ]; then
+              docker tag smartbus-$svc:$TAG ${{ secrets.ACR_LOGIN_SERVER }}/smartbus-$svc:$TAG
+              docker push ${{ secrets.ACR_LOGIN_SERVER }}/smartbus-$svc:$TAG
+            fi
+          done

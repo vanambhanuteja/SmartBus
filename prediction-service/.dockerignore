@@ -1,0 +1,4 @@
+__pycache__
+models
+tests
+.pytest_cache

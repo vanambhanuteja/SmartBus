@@ -1,0 +1,13 @@
+route_id,route_code,name,stop_ids
+1,SB-01,City Bus Stand - Chamundi Hill,2;1;28;7;5;6
+2,SB-02,Central Bus Stand - Hebbal,3;27;30;13;21;10
+3,SB-03,Railway Station - Kuvempunagar,4;3;8;14;11
+4,SB-04,City Bus Stand - Vijayanagar,2;26;27;13;9;20
+5,SB-05,Central Bus Stand - Bogadi,3;8;15;22;12
+6,SB-06,Palace - Manasagangotri,1;28;8;14;19;24
+7,SB-07,Railway Station - Mandakalli Airport,4;3;2;16;25
+8,SB-08,Nazarbad - JSS Hospital Circle,16;17;26;14;23
+9,SB-09,City Bus Stand - Ramakrishnanagar,2;28;18;29;11
+10,SB-10,Hebbal - Chamundi Hill Foot,10;21;13;27;1;5
+11,SB-11,Vijayanagar - Kuvempunagar,9;22;15;23;11
+12,SB-12,Yadavagiri - Siddhartha Layout,30;3;8;19;29

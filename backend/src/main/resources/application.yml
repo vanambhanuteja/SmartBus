@@ -1,0 +1,23 @@
+server:
+  port: 8080
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/smartbus}
+    username: ${DB_USER:smartbus}
+    password: ${DB_PASSWORD:}
+  jpa:
+    hibernate:
+      ddl-auto: none        # schema comes from database/01_schema.sql
+    open-in-view: false
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+smartbus:
+  jwt-secret: ${JWT_SECRET:}            # >= 32 characters, set in .env
+  jwt-expiry-minutes: 120
+  prediction-url: ${PREDICTION_URL:http://localhost:8000}
+  admin-email: ${ADMIN_EMAIL:}
+  admin-password: ${ADMIN_PASSWORD:}
+  cors-origins: ${CORS_ORIGINS:http://localhost:5173}

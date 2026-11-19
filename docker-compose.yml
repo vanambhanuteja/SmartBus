@@ -1,0 +1,65 @@
+# Start everything:  cp .env.example .env  &&  docker compose up --build
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${DB_NAME:-smartbus}
+      POSTGRES_USER: ${DB_USER:-smartbus}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data               # data survives container restarts
+      - ./database/01_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro   # run once on first start
+      - ./database/02_seed.sql:/docker-entrypoint-initdb.d/02_seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-smartbus} -d ${DB_NAME:-smartbus}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [smartbus-net]
+
+  prediction-service:
+    build: ./prediction-service
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    networks: [smartbus-net]
+
+  backend:
+    build: ./backend
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/${DB_NAME:-smartbus}
+      DB_USER: ${DB_USER:-smartbus}
+      DB_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      PREDICTION_URL: http://prediction-service:8000
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+    depends_on:
+      db: { condition: service_healthy }
+      prediction-service: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 40s
+    networks: [smartbus-net]
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:80"          # open http://localhost:3000
+    environment:
+      BACKEND_HOST: backend
+    depends_on:
+      backend: { condition: service_healthy }
+    networks: [smartbus-net]
+
+volumes:
+  pgdata:
+
+networks:
+  smartbus-net:
