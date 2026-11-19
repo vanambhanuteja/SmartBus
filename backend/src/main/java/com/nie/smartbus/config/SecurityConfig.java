@@ -34,6 +34,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(a -> a
                 .requestMatchers("/api/auth/**", "/actuator/health").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/routes/**", "/api/stops/**", "/api/buses/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/transit/routes/**", "/api/transit/stops/**", "/api/transit/shapes/**", "/api/transit/schedules/**", "/api/transit/fares/**", "/api/transit/attribution").permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 // only administrators may modify transportation data
                 .requestMatchers(HttpMethod.POST, "/api/routes/**", "/api/stops/**", "/api/buses/**").hasRole("ADMIN")

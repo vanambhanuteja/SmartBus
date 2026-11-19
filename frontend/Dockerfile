@@ -12,4 +12,4 @@ ENV BACKEND_HOST=backend
 COPY nginx.conf.template /etc/nginx/templates/default.conf.template
 COPY --from=build /app/dist /usr/share/nginx/html
 EXPOSE 80
-HEALTHCHECK --interval=15s --timeout=3s --retries=5 CMD wget -qO- http://localhost/ >/dev/null || exit 1
+HEALTHCHECK --interval=15s --timeout=3s --retries=5 CMD nginx -t >/dev/null 2>&1 && kill -0 1

@@ -15,7 +15,22 @@ Secrets to add (Settings → Secrets and variables → Actions): `DOCKERHUB_USER
 **Status:** workflow files are written and YAML-valid; **they have not run** (no GitHub access here). Expect to adjust after the first run.
 
 ## Docker (Module 3)
-Dockerfiles: `frontend/` (node build → nginx, `/api` proxied via `BACKEND_HOST`), `backend/` (Maven build → JRE, non-root), `prediction-service/` (trains the model at build time, gunicorn, non-root), `database/` (for cloud only). `docker-compose.yml`: 4 services, private network `smartbus-net`, `pgdata` volume, env from `.env`, health checks, `depends_on: service_healthy` ordering (db + ML → backend → frontend). Only port 3000 is published.
+Dockerfiles: `frontend/` (node build → nginx, `/api` proxied via `BACKEND_HOST`), `backend/` (Maven build → JRE, non-root), `prediction-service/` (trains the model at build time, gunicorn, non-root), `database/` (for cloud only). `docker-compose.yml`: database, importer tool, prediction service, backend, and frontend on private network `smartbus-net`; `pgdata` volume; env from `.env`; health checks; and `depends_on: service_healthy`. Local mode publishes port 3000. The optional `docker-compose.public.yml` overlay removes that port and adds Caddy on ports 80/443.
+
+## Public access from a home-hosted Kali computer
+
+The public overlay is already included. Before using it, reserve a stable LAN IP for the Kali computer in the router, confirm the router has a public address (CGNAT prevents direct inbound access), point a DuckDNS hostname to the public address, and forward TCP 80 and 443 to the reserved LAN IP. Permit those ports in the host firewall if one is enabled. Do not forward PostgreSQL or the Docker API port.
+
+Add `PUBLIC_DOMAIN=your-name.duckdns.org` to the existing `.env` without replacing its database/admin/JWT entries. Keep `.env` private. Caddy obtains and renews HTTPS certificates when the hostname resolves publicly and inbound HTTP/HTTPS can reach the machine. If the public IP changes, configure DuckDNS updates in the router or with a local DuckDNS updater; keep its token private.
+
+Start public mode from the project directory:
+
+```bash
+sudo docker compose -f docker-compose.yml -f docker-compose.public.yml up --build -d
+sudo docker compose -f docker-compose.yml -f docker-compose.public.yml ps
+```
+
+Share `https://your-name.duckdns.org`. Local-only mode remains `docker compose up --build -d` at `http://localhost:3000`. Public access depends on the ISP/router allowing inbound connections; a running local stack or public GitHub repository alone does not provide that access.
 
 ### Command cheat-sheet
 ```bash

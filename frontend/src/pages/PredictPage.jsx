@@ -12,8 +12,10 @@ export default function PredictPage() {
   const [reports, setReports] = useState([]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [bmtcRoutes,setBmtcRoutes]=useState([]),[bmtcRoute,setBmtcRoute]=useState(''),[bmtcResult,setBmtcResult]=useState(null),[bmtcError,setBmtcError]=useState(''),[bmtcBusy,setBmtcBusy]=useState(false);
 
   useEffect(() => { api('/routes').then(setRoutes).catch((e) => setError(e.message)); }, []);
+  useEffect(() => { api('/transit/routes').then(setBmtcRoutes).catch((e) => setBmtcError(e.message)); }, []);
 
   async function check(e) {
     e.preventDefault();
@@ -24,6 +26,7 @@ export default function PredictPage() {
       setReports((await api(`/crowd-reports?routeId=${routeId}`)).slice(0, 5));
     } catch (err) { setError(err.message); } finally { setBusy(false); }
   }
+  async function checkBmtc(e){e.preventDefault();setBmtcResult(null);setBmtcError('');setBmtcBusy(true);try{setBmtcResult(await api('/transit/predictions',{method:'POST',body:{routeId:bmtcRoute,travelTime:time,dayOfWeek:Number(day)}}));}catch(err){setBmtcError(err.message);}finally{setBmtcBusy(false);}}
 
   return (
     <section className="narrow">
@@ -57,6 +60,14 @@ export default function PredictPage() {
           <small>Forecast is based on {result.dataSource || 'simulated data'}; it is an estimate, not a guarantee.</small>
         </div>
       )}
+      <form onSubmit={checkBmtc} className="card form">
+        <h2>BMTC crowd forecast</h2>
+        <p>BMTC forecasts use passenger crowd reports for that BMTC route. Published schedules are not treated as live arrivals or crowd measurements.</p>
+        <div className="field"><label htmlFor="bmtc-route">BMTC route</label><select id="bmtc-route" value={bmtcRoute} onChange={e=>setBmtcRoute(e.target.value)} required><option value="">Select a BMTC route…</option>{bmtcRoutes.map(r=><option key={r.id} value={r.id}>{r.routeCode||r.id} – {r.name}</option>)}</select></div>
+        <button className="primary" disabled={bmtcBusy||!bmtcRoute}>{bmtcBusy?'Checking reports…':'Check BMTC crowd'}</button>
+        {bmtcError&&<p className="error" role="alert">{bmtcError}</p>}
+        {bmtcResult&&<div aria-live="polite">{bmtcResult.available?<><h3>Early passenger-report estimate</h3><p className="big"><CrowdBadge level={bmtcResult.crowdLevel} percent={bmtcResult.predictedOccupancyPercent}/></p><p>Based on {bmtcResult.reportsUsed} real passenger reports. It is not a live bus reading; estimates may be uncertain with few reports.</p></>:<p role="status">{bmtcResult.message}. This route has {bmtcResult.reportsReceived} real crowd reports; {bmtcResult.reportsRequired} are needed.</p>}</div>}
+      </form>
       {result && (
         <div className="card">
           <h2>Previous reports on this route</h2>

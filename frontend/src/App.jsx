@@ -40,7 +40,7 @@ export default function App() {
           <Route path="*" element={<p>Page not found.</p>} />
         </Routes>
       </main>
-      <footer>Demo network: illustrative Mysuru routes, not official KSRTC data. Crowd forecasts are based on simulated data.</footer>
+      <footer>Legacy demo routes use simulated training data. BMTC forecasts require passenger reports; published schedules are not live arrivals or crowd readings. BMTC schedule data is unofficial.</footer>
     </>
   );
 }

@@ -10,6 +10,7 @@ services:
       - pgdata:/var/lib/postgresql/data               # data survives container restarts
       - ./database/01_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro   # run once on first start
       - ./database/02_seed.sql:/docker-entrypoint-initdb.d/02_seed.sql:ro
+      - ./database/03_gtfs_schema.sql:/docker-entrypoint-initdb.d/03_gtfs_schema.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-smartbus} -d ${DB_NAME:-smartbus}"]
       interval: 5s
@@ -46,6 +47,20 @@ services:
       timeout: 3s
       retries: 12
       start_period: 40s
+    networks: [smartbus-net]
+
+  gtfs-importer:
+    build:
+      context: .
+      dockerfile: database/Dockerfile.importer
+    profiles: ["tools"]
+    environment:
+      PGHOST: db
+      PGDATABASE: ${DB_NAME:-smartbus}
+      PGUSER: ${DB_USER:-smartbus}
+      PGPASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+    depends_on:
+      db: { condition: service_healthy }
     networks: [smartbus-net]
 
   frontend:
