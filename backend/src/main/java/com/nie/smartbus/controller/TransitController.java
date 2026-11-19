@@ -38,6 +38,12 @@ public class TransitController {
         long f=activeFeed();
         return db.queryForList("select distinct s.stop_id as id,s.stop_name as name,s.stop_lat as latitude,s.stop_lon as longitude from gtfs_stop_times t join gtfs_trips tr using(feed_id,trip_id) join gtfs_stops s using(feed_id,stop_id) where t.feed_id=? and tr.route_id=? order by s.stop_name limit 2000",f,routeId);
     }
+    @GetMapping("/stops/nearby")
+    public List<Map<String,Object>> nearby(@RequestParam double latitude,@RequestParam double longitude,@RequestParam(defaultValue="10") int limit) {
+        if(latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Invalid coordinates");
+        int safeLimit=Math.max(1,Math.min(limit,50)); long f=activeFeed();
+        return db.queryForList("select stop_id id,stop_name name,stop_lat latitude,stop_lon longitude,round((6371*2*asin(sqrt(power(sin(radians(stop_lat-?)/2),2)+cos(radians(?))*cos(radians(stop_lat))*power(sin(radians(stop_lon-?)/2),2))))::numeric,2) distance_km from gtfs_stops where feed_id=? and stop_lat is not null and stop_lon is not null order by distance_km limit ?",latitude,latitude,longitude,f,safeLimit);
+    }
     @GetMapping("/shapes")
     public List<Map<String,Object>> shapes(@RequestParam String routeId, @RequestParam(required=false) Integer directionId) {
         long f=activeFeed();
@@ -73,6 +79,11 @@ public class TransitController {
     public record CrowdInput(String routeId, String stopId, String tripId, Integer occupancyPercent,
                              String crowdLevel, String vehicleLabel, String vehicleType,
                              OffsetDateTime observedAt, String note) {}
+    @GetMapping("/crowd-reports")
+    public List<Map<String,Object>> crowdReports(@RequestParam String routeId) {
+        long f=activeFeed();
+        return db.queryForList("select report_id id,route_id \"routeId\",stop_id \"stopId\",occupancy_percent \"occupancyPercent\",crowd_level \"crowdLevel\",note,observed_at \"observedAt\",reported_at \"reportedAt\",flagged from gtfs_crowd_reports where feed_id=? and route_id=? order by observed_at desc limit 50",f,routeId);
+    }
     @PostMapping("/crowd-reports")
     public Map<String,Object> report(@RequestBody CrowdInput in, Authentication auth) {
         if (in.routeId()==null || in.stopId()==null || in.observedAt()==null || in.occupancyPercent()==null || in.crowdLevel()==null)
@@ -83,13 +94,17 @@ public class TransitController {
         String expectedLevel=in.occupancyPercent()<=30?"LOW":in.occupancyPercent()<=60?"MODERATE":in.occupancyPercent()<=85?"HIGH":"OVERCROWDED";
         if (!expectedLevel.equals(in.crowdLevel())) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Crowd level must match the reported occupancy percentage");
         long f=activeFeed(); Long uid=db.queryForObject("select user_id from users where email=?",Long.class,auth.getName());
+        Integer recentByUser=db.queryForObject("select count(*) from gtfs_crowd_reports where user_id=? and reported_at>now()-interval '60 seconds'",Integer.class,uid);
+        if(recentByUser!=null&&recentByUser>0) throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,"Please wait one minute before submitting another report");
         String tripId=in.tripId()==null||in.tripId().isBlank()?null:in.tripId();
         String validSql="select count(*) from gtfs_stop_times t join gtfs_trips tr using(feed_id,trip_id) where t.feed_id=? and tr.route_id=? and t.stop_id=?";
         List<Object> validArgs=new ArrayList<>(List.of(f,in.routeId(),in.stopId()));
         if(tripId!=null){validSql+=" and t.trip_id=?";validArgs.add(tripId);}
         Integer valid=db.queryForObject(validSql,Integer.class,validArgs.toArray());
         if (valid==null || valid==0) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"That stop is not served by the selected BMTC route");
-        Long id=db.queryForObject("insert into gtfs_crowd_reports(feed_id,route_id,trip_id,stop_id,user_id,occupancy_percent,crowd_level,reported_vehicle_label,vehicle_type,observed_at,note) values(?,?,?,?,?,?,?,?,?,?,?) returning report_id",Long.class,f,in.routeId(),tripId,in.stopId(),uid,in.occupancyPercent(),in.crowdLevel(),trim(in.vehicleLabel(),80),trim(in.vehicleType(),40),in.observedAt(),trim(in.note(),255));
+        Double baseline=db.queryForObject("select avg(occupancy_percent) from gtfs_crowd_reports where feed_id=? and route_id=? and reported_at>now()-interval '30 days'",Double.class,f,in.routeId());
+        boolean flagged=baseline!=null&&Math.abs(in.occupancyPercent()-baseline)>=50.0;
+        Long id=db.queryForObject("insert into gtfs_crowd_reports(feed_id,route_id,trip_id,stop_id,user_id,occupancy_percent,crowd_level,reported_vehicle_label,vehicle_type,observed_at,note,flagged) values(?,?,?,?,?,?,?,?,?,?,?,?) returning report_id",Long.class,f,in.routeId(),tripId,in.stopId(),uid,in.occupancyPercent(),in.crowdLevel(),trim(in.vehicleLabel(),80),trim(in.vehicleType(),40),in.observedAt(),trim(in.note(),255),flagged);
         return Map.of("id",id,"message","Passenger observation recorded","observedAt",in.observedAt());
     }
     private String trim(String v,int n){ return v==null?null:v.substring(0,Math.min(v.length(),n)); }

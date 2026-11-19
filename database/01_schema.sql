@@ -70,6 +70,42 @@ CREATE TABLE predictions (
     created_at          TIMESTAMP   NOT NULL DEFAULT now()
 );
 
+CREATE TABLE favorite_routes (
+    user_id BIGINT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    route_id BIGINT NOT NULL REFERENCES routes(route_id) ON DELETE CASCADE,
+    created_at TIMESTAMP NOT NULL DEFAULT now(),
+    PRIMARY KEY (user_id, route_id)
+);
+CREATE TABLE favorite_stops (
+    user_id BIGINT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    stop_id BIGINT NOT NULL REFERENCES bus_stops(stop_id) ON DELETE CASCADE,
+    created_at TIMESTAMP NOT NULL DEFAULT now(),
+    PRIMARY KEY (user_id, stop_id)
+);
+CREATE TABLE report_confirmations (
+    report_id BIGINT NOT NULL REFERENCES crowd_reports(report_id) ON DELETE CASCADE,
+    user_id BIGINT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    helpful BOOLEAN NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT now(),
+    PRIMARY KEY (report_id, user_id)
+);
+ALTER TABLE crowd_reports ADD COLUMN flagged BOOLEAN NOT NULL DEFAULT FALSE;
+CREATE TABLE crowd_report_flags (
+    report_id BIGINT NOT NULL REFERENCES crowd_reports(report_id) ON DELETE CASCADE,
+    user_id BIGINT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    reason VARCHAR(255), created_at TIMESTAMP NOT NULL DEFAULT now(),
+    PRIMARY KEY(report_id,user_id)
+);
+CREATE TABLE admin_audit_log (
+    audit_id BIGSERIAL PRIMARY KEY,
+    actor_email VARCHAR(150) NOT NULL,
+    action VARCHAR(40) NOT NULL,
+    entity_type VARCHAR(40) NOT NULL,
+    entity_id VARCHAR(100),
+    details TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT now()
+);
+
 CREATE INDEX idx_reports_route_time ON crowd_reports (route_id, reported_at DESC);
 CREATE INDEX idx_reports_trip       ON crowd_reports (trip_id);
 CREATE INDEX idx_trips_route        ON trips (route_id);

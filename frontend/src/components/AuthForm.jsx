@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { validateLogin, validateRegister } from '../validation.js';
+import { useLanguage } from '../i18n.jsx';
 
 /** Login / register form with inline validation errors. */
 export default function AuthForm({ mode, onSubmit }) {
+  const {t}=useLanguage();
   const isRegister = mode === 'register';
   const [values, setValues] = useState({ fullName: '', email: '', password: '' });
   const [errors, setErrors] = useState({});
@@ -31,12 +33,12 @@ export default function AuthForm({ mode, onSubmit }) {
 
   return (
     <form onSubmit={submit} noValidate className="card form">
-      <h2>{isRegister ? 'Create passenger account' : 'Log in'}</h2>
-      {isRegister && field('fullName', 'Full name', 'text', { autoComplete: 'name' })}
-      {field('email', 'Email', 'email', { autoComplete: 'email' })}
-      {field('password', 'Password', 'password', { autoComplete: isRegister ? 'new-password' : 'current-password' })}
+      <h2>{isRegister ? t('Create passenger account') : t('Log in')}</h2>
+      {isRegister && field('fullName', t('Full name'), 'text', { autoComplete: 'name' })}
+      {field('email', t('Email'), 'email', { autoComplete: 'email' })}
+      {field('password', t('Password'), 'password', { autoComplete: isRegister ? 'new-password' : 'current-password' })}
       {serverError && <p className="error" role="alert">{serverError}</p>}
-      <button className="primary" disabled={busy}>{busy ? 'Please wait…' : isRegister ? 'Register' : 'Log in'}</button>
+      <button className="primary" disabled={busy}>{busy ? t('Please wait…') : isRegister ? t('Register') : t('Log in')}</button>
     </form>
   );
 }

@@ -5,11 +5,12 @@ import 'leaflet/dist/leaflet.css';
 import './styles.css';
 import App from './App.jsx';
 import { AuthProvider } from './auth.jsx';
+import { LanguageProvider } from './i18n.jsx';
+
+if ('serviceWorker' in navigator && import.meta.env.PROD) window.addEventListener('load',()=>navigator.serviceWorker.register('/service-worker.js').catch(()=>{}));
 
 createRoot(document.getElementById('root')).render(
   <BrowserRouter>
-    <AuthProvider>
-      <App />
-    </AuthProvider>
+    <LanguageProvider><AuthProvider><App /></AuthProvider></LanguageProvider>
   </BrowserRouter>
 );

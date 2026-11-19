@@ -3,15 +3,24 @@ import { api } from '../api.js';
 import { LEVELS } from '../crowd.js';
 import BarChart from '../components/BarChart.jsx';
 import CrowdBadge from '../components/CrowdBadge.jsx';
+import { getSession } from '../api.js';
+
+async function downloadPassengerCsv(){
+  const res=await fetch('/api/admin/passenger-reports.csv',{headers:{Authorization:`Bearer ${getSession()?.token||''}`}});
+  if(!res.ok) throw new Error('Could not export passenger reports.');
+  const url=URL.createObjectURL(await res.blob()),a=document.createElement('a');a.href=url;a.download='smartbus-passenger-reports.csv';a.click();URL.revokeObjectURL(url);
+}
 
 function Dashboard() {
   const [d, setD] = useState(null);
   const [error, setError] = useState('');
+  const [exportError,setExportError]=useState('');
   useEffect(() => { api('/admin/dashboard').then(setD).catch((e) => setError(e.message)); }, []);
   if (error) return <p className="error" role="alert">{error}</p>;
   if (!d) return <p>Loading…</p>;
   return (
     <>
+      <div className="card"><h2>Passenger data export</h2><p>Download real passenger observations from the demo network and imported BMTC feed as CSV. Synthetic training examples are excluded.</p><button onClick={()=>downloadPassengerCsv().catch(e=>setExportError(e.message))}>Download passenger reports CSV</button>{exportError&&<p className="error" role="alert">{exportError}</p>}</div>
       <div className="stats">
         {[['Routes', d.totalRoutes], ['Buses', d.totalBuses], ['Stops', d.totalStops], ['Reports', d.totalReports]].map(([l, v]) => (
           <div className="card stat" key={l}><strong>{v}</strong><span>{l}</span></div>
@@ -24,6 +33,38 @@ function Dashboard() {
         <small>Report sources: {Object.entries(d.reportsBySource).map(([k, v]) => `${k.toLowerCase()} ${v}`).join(', ')}. Synthetic reports are simulated.</small></div>
     </>
   );
+}
+
+function Analytics(){
+  const [rows,setRows]=useState([]),[metrics,setMetrics]=useState(null),[error,setError]=useState('');
+  useEffect(()=>{Promise.all([api('/admin/route-heatmap'),api('/admin/model-info')]).then(([h,m])=>{setRows(h);setMetrics(m);}).catch(e=>setError(e.message));},[]);
+  const max=Math.max(1,...rows.map(x=>Number(x.occupancy)));
+  const leaderboard=Object.values(rows.reduce((acc,r)=>{const key=r.route_id;acc[key]??={route:key,total:0,count:0};acc[key].total+=Number(r.occupancy);acc[key].count++;return acc;},{})).map(x=>({...x,average:x.total/x.count})).sort((a,b)=>b.average-a.average).slice(0,10);
+  return <div className="card"><h2>Passenger crowd by route, weekday, and hour</h2>{error&&<p className="error" role="alert">{error}</p>}<div className="heatmap-grid">{rows.map(r=><div title={`${r.route_id} · day ${r.weekday} · ${r.hour}:00 · ${r.occupancy}% (${r.reports} reports)`} key={`${r.route_id}-${r.weekday}-${r.hour}`} style={{background:`rgba(190,54,45,${.12+.75*Number(r.occupancy)/max})`}}>{r.route_id}/{r.weekday}/{r.hour}h<br/>{Math.round(r.occupancy)}%</div>)}</div>
+    {leaderboard.length>0&&<><h3>Most crowded demo routes (reported average)</h3><ol>{leaderboard.map(r=><li key={r.route}>{r.route}: {r.average.toFixed(1)}%</li>)}</ol></>}
+    {metrics&&<><h2>Model comparison (simulated holdout)</h2><table><thead><tr><th>Model</th><th>MAE</th><th>R²</th></tr></thead><tbody>{(metrics.model_comparison||[]).map(m=><tr key={m.model}><td>{m.model}</td><td>{m.mae_percentage_points} percentage points</td><td>{m.r2}</td></tr>)}</tbody></table><h3>Random Forest feature importance</h3><ul>{(metrics.feature_importance||[]).map(f=><li key={f.feature}>{f.feature}: {f.importance}</li>)}</ul><small>Metrics use generated demo data only; they do not establish real-bus accuracy.</small></>}
+  </div>;
+}
+
+function Moderation(){
+  const [rows,setRows]=useState([]),[selected,setSelected]=useState({}),[message,setMessage]=useState('');
+  const load=useCallback(()=>api('/admin/reports/flagged').then(setRows).catch(e=>setMessage(e.message)),[]);
+  useEffect(()=>{load();},[load]);
+  async function action(network,endpoint){const ids=rows.filter(r=>r.network===network&&selected[`${network}:${r.id}`]).map(r=>r.id);if(!ids.length)return;try{await api(`/admin/reports/${endpoint}`,{method:'POST',body:{network,ids}});setSelected({});setMessage('Moderation changes saved.');load();}catch(e){setMessage(e.message);}}
+  return <div className="card"><h2>Flagged reports</h2><p>Reports are auto-flagged when crowd levels differ sharply from recent route reports, or when passengers flag them. Review before deleting.</p>{message&&<p role="status">{message}</p>}{rows.length===0?<p>No reports are flagged.</p>:<><table><thead><tr><th>Select</th><th>Network</th><th>Route</th><th>Level</th><th>Auto flag</th><th>User flags</th><th>Reason/note</th></tr></thead><tbody>{rows.map(r=><tr key={`${r.network}:${r.id}`}><td><input type="checkbox" aria-label={`Select report ${r.id}`} checked={Boolean(selected[`${r.network}:${r.id}`])} onChange={e=>setSelected(v=>({...v,[`${r.network}:${r.id}`]:e.target.checked}))}/></td><td>{r.network}</td><td>{r.route}</td><td>{r.level} ({r.occupancy}%)</td><td>{r.auto_flagged?'Yes':'No'}</td><td>{r.user_flags}</td><td>{r.note||'—'}</td></tr>)}</tbody></table>{['demo','BMTC'].map(n=><div className="row" key={n}><button onClick={()=>action(n,'bulk-delete')}>Delete selected {n} reports</button><button onClick={()=>action(n,'moderation/resolve')}>Dismiss selected {n} flags</button></div>)}</>}</div>;
+}
+
+function ForecastAccuracy(){
+  const [rows,setRows]=useState([]),[error,setError]=useState('');
+  useEffect(()=>{api('/admin/forecast-accuracy').then(setRows).catch(e=>setError(e.message));},[]);
+  const mae=rows.length?rows.reduce((sum,r)=>sum+Math.abs(Number(r.error)),0)/rows.length:null;
+  return <div className="card"><h2>Forecast versus passenger reports</h2><p>Matches a forecast with the first later passenger report for the same route, weekday, and nearby hour. It is a rough retrospective check, not a controlled model evaluation.</p>{error&&<p className="error" role="alert">{error}</p>}{mae!==null&&<p>Matched observations: {rows.length} · mean absolute error: {mae.toFixed(1)} percentage points</p>}{rows.length===0?<p>No later passenger reports match stored forecasts yet.</p>:<><div className="chart" role="img" aria-label="Absolute forecast error for recent comparisons">{rows.slice(0,24).reverse().map(r=><div className="bar-col" key={r.id}><span className="bar-val">{Math.round(Math.abs(r.error))}</span><div className="bar" style={{height:`${Math.max(2,Math.abs(r.error))}%`,background:Number(r.error)>0?'#c53b32':'#18864b'}}/><span className="bar-label">{r.route}</span></div>)}</div><table><thead><tr><th>Route</th><th>Time</th><th>Forecast</th><th>Report</th><th>Error</th></tr></thead><tbody>{rows.slice(0,100).map(r=><tr key={r.id}><td>{r.route}</td><td>{r.travel_time}</td><td>{Math.round(r.predicted)}%</td><td>{r.actual}%</td><td>{Number(r.error)>0?'+':''}{Number(r.error).toFixed(1)} points</td></tr>)}</tbody></table></>}</div>;
+}
+
+function AuditLog(){
+  const [rows,setRows]=useState([]),[error,setError]=useState('');
+  useEffect(()=>{api('/admin/audit-log').then(setRows).catch(e=>setError(e.message));},[]);
+  return <div className="card"><h2>Admin audit log</h2>{error&&<p className="error" role="alert">{error}</p>}<table><thead><tr><th>When</th><th>Who</th><th>Action</th><th>Item</th><th>Details</th></tr></thead><tbody>{rows.map((r,i)=><tr key={`${r.created_at}-${i}`}><td>{new Date(r.created_at).toLocaleString()}</td><td>{r.actor_email}</td><td>{r.action}</td><td>{r.entity_type} {r.entity_id}</td><td>{r.details}</td></tr>)}</tbody></table></div>;
 }
 
 function Routes() {
@@ -127,7 +168,7 @@ function Predictions() {
   );
 }
 
-const TABS = { Dashboard, Routes, Stops, Reports, Predictions };
+const TABS = { Dashboard, Routes, Stops, Reports, Predictions, Analytics, Moderation, 'Forecast accuracy': ForecastAccuracy, 'Audit log': AuditLog };
 
 export default function AdminPage() {
   const [tab, setTab] = useState('Dashboard');

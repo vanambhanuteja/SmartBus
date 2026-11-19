@@ -1,0 +1,10 @@
+{
+  "name": "SmartBus Crowd Monitor",
+  "short_name": "SmartBus",
+  "description": "Explore bus routes and passenger crowd reports.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f4f7fb",
+  "theme_color": "#0b5cad",
+  "icons": [{"src":"/bus-icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]
+}

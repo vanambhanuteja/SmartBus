@@ -9,10 +9,14 @@ import org.springframework.data.jpa.repository.Query;
 public interface CrowdReportRepository extends JpaRepository<CrowdReport, Long> {
     List<CrowdReport> findTop50ByOrderByReportedAtDesc();
     List<CrowdReport> findTop50ByRouteIdOrderByReportedAtDesc(Long routeId);
+    boolean existsByUserIdAndReportedAtAfter(Long userId, LocalDateTime after);
 
     /** Average occupancy of real passenger reports since a given time (null if there are none). */
     @Query("select avg(r.occupancyPercent) from CrowdReport r where r.routeId = :routeId and r.source = 'PASSENGER' and r.reportedAt >= :since")
     Double averageRecentPassengerOccupancy(Long routeId, LocalDateTime since);
+
+    @Query("select avg(r.occupancyPercent) from CrowdReport r where r.routeId = :routeId and r.source = 'PASSENGER' and r.reportedAt >= :since")
+    Double averagePassengerOccupancy(Long routeId, LocalDateTime since);
 
     @Query("select r.crowdLevel, count(r) from CrowdReport r group by r.crowdLevel")
     List<Object[]> countByCrowdLevel();

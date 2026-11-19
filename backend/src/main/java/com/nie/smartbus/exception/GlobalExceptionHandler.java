@@ -12,6 +12,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 /** Turns exceptions into consistent JSON errors: {timestamp,status,error,details?}. */
 @RestControllerAdvice
@@ -45,6 +46,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<Map<String, Object>> conflict(DataIntegrityViolationException e) {
         return body(HttpStatus.CONFLICT, "Operation conflicts with existing data (duplicate value or record in use)", null);
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<Map<String, Object>> status(ResponseStatusException e) {
+        HttpStatus status = HttpStatus.valueOf(e.getStatusCode().value());
+        return body(status, e.getReason() == null ? status.getReasonPhrase() : e.getReason(), null);
     }
 
     @ExceptionHandler(Exception.class)

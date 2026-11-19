@@ -32,10 +32,11 @@ public class SecurityConfig {
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
             .authorizeHttpRequests(a -> a
-                .requestMatchers("/api/auth/**", "/actuator/health").permitAll()
+                .requestMatchers("/api/auth/**", "/actuator/health", "/actuator/prometheus").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/routes/**", "/api/stops/**", "/api/buses/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/transit/routes/**", "/api/transit/stops/**", "/api/transit/shapes/**", "/api/transit/schedules/**", "/api/transit/fares/**", "/api/transit/attribution").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/transit/routes/**", "/api/transit/stops/**", "/api/transit/shapes/**", "/api/transit/schedules/**", "/api/transit/fares/**", "/api/transit/plan", "/api/transit/attribution").permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/api/me/favorites").authenticated()
                 // only administrators may modify transportation data
                 .requestMatchers(HttpMethod.POST, "/api/routes/**", "/api/stops/**", "/api/buses/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.PUT, "/api/routes/**", "/api/stops/**", "/api/buses/**").hasRole("ADMIN")

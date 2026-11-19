@@ -13,7 +13,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health
+        include: health,prometheus
 smartbus:
   jwt-secret: ${JWT_SECRET:}            # >= 32 characters, set in .env
   jwt-expiry-minutes: 120

@@ -16,6 +16,7 @@ public class CrowdReport {
     @Column(nullable = false) private String source = "PASSENGER";   // PASSENGER or SYNTHETIC
     private String note;
     @Column(name = "reported_at", nullable = false) private LocalDateTime reportedAt = LocalDateTime.now();
+    @Column(nullable = false) private boolean flagged;
 
     public Long getId() { return id; }
     public Long getTripId() { return tripId; }
@@ -34,4 +35,6 @@ public class CrowdReport {
     public void setNote(String v) { this.note = v; }
     public LocalDateTime getReportedAt() { return reportedAt; }
     public void setReportedAt(LocalDateTime v) { this.reportedAt = v; }
+    public boolean isFlagged() { return flagged; }
+    public void setFlagged(boolean v) { this.flagged = v; }
 }

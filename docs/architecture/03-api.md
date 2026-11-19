@@ -18,6 +18,7 @@ Base URL: `/api` (through nginx on port 3000, or `http://localhost:8080` directl
 | POST `/predictions` `{routeId,travelTime:"HH:MM",dayOfWeek?0-6}` | logged in | Calls ML service; stores & returns forecast | 200 | 400, 404, 503 ML down |
 | GET `/predictions/{routeId}` | logged in | Last 10 stored predictions | 200 | 404 |
 | GET `/admin/dashboard` | ADMIN | Totals, crowd distribution, report sources, hourly averages | 200 | 401, 403 |
+| GET `/transit/plan?fromStop=&toStop=` | public | Direct BMTC routes, or one-switch options with transfer stop when no direct route exists | 200 | 400, 503 if feed unavailable |
 | GET `/actuator/health` | public | Health check | 200 | |
 
 ### Prediction service (internal, port 8000)

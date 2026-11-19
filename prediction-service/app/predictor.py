@@ -49,8 +49,12 @@ class Predictor:
         if isinstance(recent, bool) or not isinstance(recent, (int, float)) or not 0 <= recent <= 100:
             raise InvalidInput("recent_reports_avg must be a number between 0 and 100")
         row = pd.DataFrame([[route_id, hour, dow, hist, float(recent)]], columns=FEATURES)
-        occ = round(float(min(100.0, max(0.0, self.model.predict(row)[0]))), 1)
+        trees = getattr(self.model, "estimators_", [])
+        samples = [float(tree.predict(row)[0]) for tree in trees] if len(trees) else [float(self.model.predict(row)[0])]
+        occ = round(float(min(100.0, max(0.0, sum(samples) / len(samples)))), 1)
+        confidence = [round(float(min(100.0, max(0.0, value))), 1) for value in pd.Series(samples).quantile([0.1, 0.9]).tolist()]
         return {"route_id": route_id, "predicted_occupancy_percent": occ, "crowd_category": categorize(occ),
+                "confidence_range": confidence,
                 "travel_time": f"{hour:02d}:00", "day_of_week": dow, "historical_occupancy": round(hist, 1),
                 "prediction_timestamp": datetime.now(timezone.utc).isoformat(), "model": "RandomForestRegressor",
                 "data_source": "SYNTHETIC training data"}

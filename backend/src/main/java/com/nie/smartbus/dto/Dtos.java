@@ -46,7 +46,7 @@ public final class Dtos {
                                     @Min(0) @Max(6) Integer dayOfWeek) { }
     public record PredictionDto(Long routeId, String routeName, double predictedOccupancyPercent, String crowdLevel,
                                 String travelTime, int dayOfWeek, LocalDateTime predictionTimestamp,
-                                Double recentReportsAvg, String dataSource) { }
+                                Double recentReportsAvg, String dataSource, List<Double> confidenceRange) { }
 
     // ---- admin ----
     public record DashboardDto(long totalRoutes, long totalBuses, long totalStops, long totalReports,

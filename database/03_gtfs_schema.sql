@@ -190,6 +190,7 @@ CREATE TABLE IF NOT EXISTS gtfs_crowd_reports (
   vehicle_type VARCHAR(40),
   observed_at TIMESTAMPTZ NOT NULL,
   note VARCHAR(255),
+  flagged BOOLEAN NOT NULL DEFAULT FALSE,
   reported_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   FOREIGN KEY (feed_id, route_id) REFERENCES gtfs_routes(feed_id, route_id),
   FOREIGN KEY (feed_id, trip_id, route_id) REFERENCES gtfs_trips(feed_id, trip_id, route_id),
@@ -206,6 +207,35 @@ CREATE TABLE IF NOT EXISTS gtfs_predictions (
   reports_used INTEGER NOT NULL CHECK (reports_used > 0),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   FOREIGN KEY (feed_id, route_id) REFERENCES gtfs_routes(feed_id, route_id)
+);
+
+CREATE TABLE IF NOT EXISTS gtfs_report_confirmations (
+    report_id BIGINT NOT NULL REFERENCES gtfs_crowd_reports(report_id) ON DELETE CASCADE,
+    user_id BIGINT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    helpful BOOLEAN NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT now(),
+    PRIMARY KEY (report_id, user_id)
+);
+CREATE TABLE IF NOT EXISTS gtfs_report_flags (
+    report_id BIGINT NOT NULL REFERENCES gtfs_crowd_reports(report_id) ON DELETE CASCADE,
+    user_id BIGINT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    reason VARCHAR(255),
+    created_at TIMESTAMP NOT NULL DEFAULT now(),
+    PRIMARY KEY(report_id,user_id)
+);
+CREATE TABLE IF NOT EXISTS favorite_gtfs_routes (
+    user_id BIGINT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    feed_id BIGINT NOT NULL,
+    route_id VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT now(),
+    PRIMARY KEY (user_id, feed_id, route_id)
+);
+CREATE TABLE IF NOT EXISTS favorite_gtfs_stops (
+    user_id BIGINT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    feed_id BIGINT NOT NULL,
+    stop_id VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT now(),
+    PRIMARY KEY (user_id, feed_id, stop_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_gtfs_routes_name ON gtfs_routes(feed_id, route_short_name, route_long_name);

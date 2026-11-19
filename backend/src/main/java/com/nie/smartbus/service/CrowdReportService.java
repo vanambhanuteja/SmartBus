@@ -7,6 +7,8 @@ import com.nie.smartbus.exception.ApiException;
 import com.nie.smartbus.repository.CrowdReportRepository;
 import com.nie.smartbus.repository.UserRepository;
 import java.util.List;
+import java.time.LocalDateTime;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -22,14 +24,20 @@ public class CrowdReportService {
     public CrowdReportDto submit(CrowdReportRequest r, String email) {
         routes.find(r.routeId());   // 404 if the route does not exist
         CrowdLevel level = CrowdLevel.valueOf(r.crowdLevel());
+        Long userId=users.findByEmail(email).map(u -> u.getId()).orElse(null);
+        LocalDateTime now=LocalDateTime.now();
+        if(userId!=null&&reports.existsByUserIdAndReportedAtAfter(userId,now.minusSeconds(60)))
+            throw new ApiException(HttpStatus.TOO_MANY_REQUESTS,"Please wait one minute before submitting another report");
         CrowdReport rep = new CrowdReport();
         rep.setRouteId(r.routeId());
         rep.setTripId(r.tripId());
-        rep.setUserId(users.findByEmail(email).map(u -> u.getId()).orElse(null));
+        rep.setUserId(userId);
         rep.setCrowdLevel(level.name());
         rep.setOccupancyPercent(level.getMidpoint());
         rep.setSource("PASSENGER");
         rep.setNote(r.note());
+        Double baseline=reports.averagePassengerOccupancy(r.routeId(),now.minusDays(30));
+        rep.setFlagged(baseline!=null&&Math.abs(level.getMidpoint()-baseline)>=50.0);
         return toDto(reports.save(rep));
     }
 

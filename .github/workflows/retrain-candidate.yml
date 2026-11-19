@@ -1,0 +1,43 @@
+name: Review real-data model candidate
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '30 3 * * 1'
+jobs:
+  candidate:
+    if: vars.SMARTBUS_API_URL != ''
+    runs-on: ubuntu-latest
+    environment: ml-retraining
+    env:
+      SMARTBUS_API_URL: ${{ vars.SMARTBUS_API_URL }}
+      ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+      ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+      CANDIDATE_MODEL_PATH: models/real-candidate.joblib
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12', cache: pip, cache-dependency-path: prediction-service/requirements.txt }
+      - name: Require protected admin credentials
+        env:
+          CHECK_API_URL: ${{ vars.SMARTBUS_API_URL }}
+          CHECK_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+          CHECK_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+        run: test -n "$CHECK_API_URL" && test -n "$CHECK_EMAIL" && test -n "$CHECK_PASSWORD"
+      - name: Install model dependencies
+        run: pip install -r prediction-service/requirements.txt
+      - name: Download passenger report export to the ephemeral runner
+        run: python scripts/fetch_passenger_export.py
+      - name: Prepare the synthetic baseline for a same-holdout comparison
+        working-directory: prediction-service
+        run: python -m app.generate_dataset && python -m app.train
+      - name: Evaluate chronological holdout and create candidate only if it improves
+        working-directory: prediction-service
+        run: python -m app.retrain_real /tmp/smartbus-passenger-reports.csv
+      - name: Publish evaluation metrics and any improved candidate (model data is not committed)
+        uses: actions/upload-artifact@v4
+        with:
+          name: real-data-model-review
+          path: |
+            prediction-service/models/real-candidate.joblib
+            prediction-service/models/real-candidate-metrics.json
+          retention-days: 14

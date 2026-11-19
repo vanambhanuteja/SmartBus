@@ -39,8 +39,9 @@ public class PredictionService {
         p.setCrowdLevel(level);
         predictions.save(p);
 
+        List<Double> interval = res.get("confidence_range") instanceof List<?> xs ? xs.stream().map(x -> ((Number)x).doubleValue()).toList() : List.of();
         return new PredictionDto(route.getId(), route.getName(), pct, level, r.travelTime(), dow,
-                p.getCreatedAt(), recent, String.valueOf(res.get("data_source")));
+                p.getCreatedAt(), recent, String.valueOf(res.get("data_source")), interval);
     }
 
     public List<Prediction> recentFor(Long routeId) {

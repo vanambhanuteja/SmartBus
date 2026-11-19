@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AuthForm from '../components/AuthForm.jsx';
 import { useAuth } from '../auth.jsx';
+import { useLanguage } from '../i18n.jsx';
 
 export default function Login() {
   const [mode, setMode] = useState('login');
   const { login, register } = useAuth();
+  const {t}=useLanguage();
   const navigate = useNavigate();
 
   async function submit(v) {
@@ -16,9 +18,9 @@ export default function Login() {
     <section className="narrow">
       <AuthForm key={mode} mode={mode} onSubmit={submit} />
       <p className="center">
-        {mode === 'login' ? 'New passenger?' : 'Already registered?'}{' '}
+        {mode === 'login' ? t('New passenger?') : t('Already registered?')}{' '}
         <button className="link" onClick={() => setMode(mode === 'login' ? 'register' : 'login')}>
-          {mode === 'login' ? 'Create an account' : 'Log in'}
+          {mode === 'login' ? t('Create an account') : t('Log in')}
         </button>
       </p>
     </section>

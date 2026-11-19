@@ -8,7 +8,8 @@ import os
 import joblib
 import numpy as np
 import pandas as pd
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+from sklearn.tree import DecisionTreeRegressor
 from sklearn.metrics import (accuracy_score, mean_absolute_error, precision_recall_fscore_support,
                              r2_score, confusion_matrix)
 from .config import DATASET_PATH, MODEL_PATH, FEATURES, categorize
@@ -67,6 +68,19 @@ def train_model(df: pd.DataFrame, model_path: str = MODEL_PATH, seed: int = 42) 
         "confusion_matrix_labels": CATS,
         "confusion_matrix": confusion_matrix(y_true, y_pred, labels=CATS).tolist(),
     }
+    comparisons = []
+    for name, candidate in [
+        ("Decision Tree", DecisionTreeRegressor(max_depth=12, random_state=seed)),
+        ("Random Forest", model),
+        ("Gradient Boosting", GradientBoostingRegressor(n_estimators=100, max_depth=3, random_state=seed)),
+    ]:
+        candidate.fit(train[FEATURES], train["occupancy_percent"])
+        candidate_pred = np.clip(candidate.predict(test[FEATURES]), 0, 100)
+        comparisons.append({"model": name, "mae_percentage_points": round(float(mean_absolute_error(test["occupancy_percent"], candidate_pred)), 2),
+                            "r2": round(float(r2_score(test["occupancy_percent"], candidate_pred)), 3)})
+    metrics["model_comparison"] = comparisons
+    metrics["feature_importance"] = [{"feature": feature, "importance": round(float(value), 4)}
+                                     for feature, value in zip(FEATURES, model.feature_importances_)]
     os.makedirs(os.path.dirname(os.path.abspath(model_path)), exist_ok=True)
     joblib.dump({"model": model, "history": hist, "features": FEATURES,
                  "global_mean": float(train["occupancy_percent"].mean()), "metrics": metrics}, model_path)

@@ -7,6 +7,7 @@ import RoutesPage from './pages/RoutesPage.jsx';
 import PredictPage from './pages/PredictPage.jsx';
 import ReportPage from './pages/ReportPage.jsx';
 import AdminPage from './pages/AdminPage.jsx';
+import { useLanguage } from './i18n.jsx';
 
 function RequireAuth({ children, admin }) {
   const { user, isAdmin } = useAuth();
@@ -17,19 +18,25 @@ function RequireAuth({ children, admin }) {
 
 export default function App() {
   const { user, isAdmin, logout } = useAuth();
+  const {language,toggleLanguage,t}=useLanguage();
+  const [dark,setDark]=React.useState(localStorage.getItem('smartbus-theme')==='dark');
+  React.useEffect(()=>{document.documentElement.dataset.theme=dark?'dark':'light';localStorage.setItem('smartbus-theme',dark?'dark':'light');},[dark]);
   return (
     <>
+      <a className="skip-link" href="#main-content">{t('Skip to main content')}</a>
       <header className="topbar">
         <Link to="/" className="brand">🚌 SmartBus</Link>
         <nav>
-          <NavLink to="/routes">Routes</NavLink>
-          {user && <NavLink to="/predict">Crowd forecast</NavLink>}
-          {user && <NavLink to="/report">Report crowd</NavLink>}
-          {isAdmin && <NavLink to="/admin">Admin</NavLink>}
-          {user ? <button onClick={logout}>Log out ({user.fullName})</button> : <NavLink to="/login">Log in</NavLink>}
+          <NavLink to="/routes">{t('Routes')}</NavLink>
+          {user && <NavLink to="/predict">{t('Crowd forecast')}</NavLink>}
+          {user && <NavLink to="/report">{t('Report crowd')}</NavLink>}
+          {isAdmin && <NavLink to="/admin">{t('Admin')}</NavLink>}
+          {user ? <button onClick={logout}>{t('Log out')} ({user.fullName})</button> : <NavLink to="/login">{t('Log in')}</NavLink>}
+          <button type="button" onClick={()=>setDark(v=>!v)}>{t(dark?'Switch to light mode':'Switch to dark mode')}</button>
+          <button type="button" aria-pressed={language==='kn'} onClick={toggleLanguage}>{language==='kn'?'English':'ಕನ್ನಡ'}</button>
         </nav>
       </header>
-      <main>
+      <main id="main-content" tabIndex={-1}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
@@ -40,7 +47,7 @@ export default function App() {
           <Route path="*" element={<p>Page not found.</p>} />
         </Routes>
       </main>
-      <footer>Legacy demo routes use simulated training data. BMTC forecasts require passenger reports; published schedules are not live arrivals or crowd readings. BMTC schedule data is unofficial.</footer>
+      <footer>{t('Legacy demo routes use simulated training data. BMTC forecasts require passenger reports; published schedules are not live arrivals or crowd readings. BMTC schedule data is unofficial.')}</footer>
     </>
   );
 }

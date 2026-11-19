@@ -1,5 +1,6 @@
 # secrets & env
 .env
+backups/
 *.tfvars
 *.tfstate*
 .terraform/
@@ -11,6 +12,7 @@ __pycache__/
 *.pyc
 .pytest_cache/
 prediction-service/models/model.joblib
+prediction-service/models/real-candidate*
 # IDE / OS
 .idea/
 .vscode/
