@@ -24,7 +24,7 @@ jobs:
       TF_VAR_admin_password: ${{ secrets.ADMIN_PASSWORD }}
     defaults: { run: { working-directory: infrastructure/terraform } }
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: hashicorp/setup-terraform@v3
       - run: terraform init
       - run: terraform validate
