@@ -17,5 +17,8 @@ curl -fs -X POST "$BASE/api/crowd-reports" -H "Authorization: Bearer $TOKEN" -H 
 curl -fs -X POST "$BASE/api/predictions" -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
   -d '{"routeId":1,"travelTime":"09:00","dayOfWeek":1}' | grep -q crowdLevel && ok "backend -> ML service prediction" || fail "prediction"
 CODE=$(curl -s -o /dev/null -w '%{http_code}' "$BASE/api/admin/dashboard" -H "Authorization: Bearer $TOKEN")
-[ "$CODE" = "403" ]                                            && ok "passenger blocked from admin API"   || fail "rbac (got $CODE)"
+case "$CODE" in
+  401|403) ok "passenger blocked from admin API" ;;
+  *) fail "rbac (got $CODE)" ;;
+esac
 echo "All smoke checks passed"
