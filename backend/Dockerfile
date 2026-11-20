@@ -9,6 +9,7 @@ RUN mvn -B -q package -DskipTests
 # Stage 2: small runtime image
 FROM eclipse-temurin:21-jre
 RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/* \
+    && rm -f /usr/bin/pebble && rm -rf /var/lib/pebble \
     && useradd --system --uid 1001 appuser
 WORKDIR /app
 COPY --from=build /app/target/smartbus-backend-1.0.0.jar app.jar
