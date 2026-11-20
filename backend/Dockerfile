@@ -7,7 +7,7 @@ COPY src ./src
 RUN mvn -B -q package -DskipTests
 
 # Stage 2: small runtime image
-FROM eclipse-temurin:21-jre
+FROM eclipse-temurin:25-jre
 RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/* \
     && rm -f /usr/bin/pebble && rm -rf /var/lib/pebble \
     && useradd --system --uid 1001 appuser
