@@ -47,7 +47,7 @@ jobs:
     defaults: { run: { working-directory: backend } }
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         with: { distribution: temurin, java-version: 21, cache: maven }
       - run: mvn -B verify          # compiles, runs JUnit tests, builds the jar
       - uses: actions/upload-artifact@v4
